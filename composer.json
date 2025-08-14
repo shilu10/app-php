@@ -1,0 +1,17 @@
+{
+    "name": "myapp/joblisting",
+    "autoload": {
+        "psr-4": {
+            "Framework\\": "framework/",
+            "App\\": "app/",
+            "Config\\": "config/"
+        }
+    },
+    "authors": [
+        {
+            "name": "shilu10",
+            "email": "shilu842003@example.com"
+        }
+    ],
+    "require": {}
+}
