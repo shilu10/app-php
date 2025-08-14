@@ -4,153 +4,139 @@ namespace Framework;
 
 use Exception;
 
+/**
+ * Router
+ * ------
+ * Matches incoming HTTP requests to registered controller methods.
+ * Automatically extracts:
+ *   - Path parameters from URI placeholders like /users/{id}
+ *   - Query parameters from ?foo=bar
+ *   - Body data from POST/PATCH/PUT/DELETE requests (JSON or form-data)
+ */
 class Router
 {
-    // Arrays to store registered routes for each HTTP method
-    protected array $getRoutes = [];
-    protected array $postRoutes = [];
+    // Route tables for different HTTP verbs
+    protected array $getRoutes    = [];
+    protected array $postRoutes   = [];
     protected array $deleteRoutes = [];
-    protected array $patchRoutes = [];
+    protected array $patchRoutes  = [];
 
-    // Debug mode flag (true = extra debug output)
-    protected bool $debug = true;
+    // Debug flag
+    protected bool $debug = false;
 
-    /**
-     * Constructor to initialize Router
-     *
-     * @param bool $debug Enable or disable debug mode
-     */
     public function __construct(bool $debug = false)
     {
         $this->debug = $debug;
     }
 
-    /**
-     * Register a GET route
-     *
-     * @param string $path Route path (e.g. "users/{id}")
-     * @param string $controllerHandler Controller@method string
-     */
+    // -----------------------------
+    // Route registration methods
+    // -----------------------------
     public function GET(string $path, string $controllerHandler): void
     {
         $this->getRoutes[$path] = $controllerHandler;
     }
 
-    /**
-     * Register a POST route
-     */
     public function POST(string $path, string $controllerHandler): void
     {
         $this->postRoutes[$path] = $controllerHandler;
     }
 
-    /**
-     * Register a PATCH route
-     */
     public function PATCH(string $path, string $controllerHandler): void
     {
         $this->patchRoutes[$path] = $controllerHandler;
     }
 
-    /**
-     * Register a DELETE route
-     */
+    public function PUT(string $path, string $controllerHandler): void
+    {
+        $this->patchRoutes[$path] = $controllerHandler; // treat PUT same as PATCH
+    }
+
     public function DELETE(string $path, string $controllerHandler): void
     {
         $this->deleteRoutes[$path] = $controllerHandler;
     }
 
-    /**
-     * Listen for incoming HTTP requests and route them
-     */
+    // -----------------------------
+    // Main listener
+    // -----------------------------
     public function listen(): void
     {
-        // Get the request URI path (without query string) and remove leading/trailing slashes
+        // Get request path without query string
         $uri = trim(parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH), '/');
 
-        // Get the current HTTP method (GET, POST, PATCH, DELETE, etc.)
+        // HTTP verb (GET, POST, PATCH, PUT, DELETE)
         $method = $_SERVER["REQUEST_METHOD"];
 
-        // Select the correct set of registered routes based on HTTP method
+        // Select correct route set
         $routes = match ($method) {
             "GET"    => $this->getRoutes,
             "POST"   => $this->postRoutes,
             "PATCH"  => $this->patchRoutes,
+            "PUT"    => $this->patchRoutes,
             "DELETE" => $this->deleteRoutes,
             default  => []
         };
 
-        // Loop through registered routes to find a match
+        // Loop over registered routes and match against request URI
         foreach ($routes as $routePath => $handler) {
-            // Remove extra slashes from the route path
             $normalizedRoute = trim($routePath, '/');
 
-            // Convert {param} placeholders into regex capture groups
+            // Replace {param} placeholders with regex capture groups
             $pattern = preg_replace('/\{[^}]+\}/', '([^/]+)', $normalizedRoute);
 
-            // Check if the request URI matches this route
+            // Check if the request URI matches this route pattern
             if (preg_match("#^{$pattern}$#", $uri, $matches)) {
-                // Remove full match from $matches array (first element)
-                array_shift($matches);
+                array_shift($matches); // remove the full match
 
-                // Parameters array to pass to controller
-                $params = [];
+                // ----------------------------------------
+                // Build a clean, consistent params array
+                // ----------------------------------------
+                $pathParams  = $matches; // from {placeholders}
+                $queryParams = $_GET;    // from ?foo=bar
+                $bodyData    = [];       // will fill for methods with a body
 
-                if ($method === "GET") {
-                    /**
-                     * For GET requests:
-                     * - Route parameters (from URL)
-                     * - Query parameters ($_GET)
-                     */
-                    $params = array_merge($matches, [$_GET]);
-                } 
-                elseif ($method === "POST" || $method === "DELETE") {
-                    /**
-                     * For POST & DELETE requests:
-                     * - Route parameters
-                     * - Form data ($_POST)
-                     */
-                    $params = array_merge($matches, [$_POST]);
-                } 
-                elseif ($method === "PATCH") {
-                    // (Debug) Output route parameters if debug is enabled
-                    if ($this->debug) {
-                        var_dump($matches);
+                // Only read body for POST/PATCH/PUT/DELETE
+                if (in_array($method, ["POST", "PATCH", "PUT", "DELETE"])) {
+                    $rawBody = file_get_contents("php://input");
+
+                    // If body exists, try JSON first
+                    if (!empty($rawBody)) {
+                        if ($this->isJson($rawBody)) {
+                            $bodyData = json_decode($rawBody, true);
+                        } else {
+                            // Otherwise treat as form-urlencoded
+                            parse_str($rawBody, $bodyData);
+                        }
                     }
 
-                    /**
-                     * For PATCH requests:
-                     * - Read raw request body
-                     * - Try to parse as JSON, otherwise as form data
-                     */
-                    $input = file_get_contents("php://input");
-                    $parsedInput = [];
-
-                    // If JSON, decode into array
-                    if ($this->isJson($input)) {
-                        $parsedInput = json_decode($input, true);
-                    } 
-                    // Otherwise parse as query string
-                    else {
-                        parse_str($input, $parsedInput);
+                    // Merge in $_POST in case of traditional form submissions
+                    if (!empty($_POST)) {
+                        $bodyData = array_merge($bodyData, $_POST);
                     }
-
-                    /**
-                     * Merge:
-                     * - Route params
-                     * - PATCH body data
-                     * - Query parameters ($_GET)
-                     */
-                    $params = array_merge($matches, [$parsedInput, $_GET]);
                 }
 
-                // Dispatch the request to the matched controller method
+                // Structured parameters passed to controller
+                $params = [
+                    'pathParams'  => $pathParams,
+                    'queryParams' => $queryParams,
+                    'body'        => $bodyData
+                ];
+
+                // Optional debugging
+                if ($this->debug) {
+                    echo "<pre>Matched route: {$routePath}\n";
+                    print_r($params);
+                    echo "</pre>";
+                }
+
+                // Call controller method with structured params
                 $this->callHandler($handler, $params);
                 return;
             }
         }
 
-        // No matching route → 404 Not Found
+        // If no match found → 404
         http_response_code(404);
         if (function_exists('loadView')) {
             loadView("error");
@@ -159,49 +145,39 @@ class Router
         }
     }
 
-    /**
-     * Call the given controller method with parameters
-     *
-     * @param string $controllerHandler Controller@method format
-     * @param array $params Parameters to pass to the method
-     */
+    // -----------------------------
+    // Call the matched controller
+    // -----------------------------
     protected function callHandler(string $controllerHandler, array $params = []): void
     {
-        // Split "Controller@method" into class and method
+        // Split into [ControllerClass, methodName]
         [$controllerClass, $controllerMethod] = explode("@", $controllerHandler);
 
-        // Add application namespace to controller
+        // Add namespace prefix
         $controllerClass = "App\\Controllers\\" . $controllerClass;
 
-        // Ensure controller class exists
         if (!class_exists($controllerClass)) {
             throw new Exception("Controller {$controllerClass} not found");
         }
 
-        // Instantiate the controller
         $controller = new $controllerClass();
 
-        // Ensure the method exists on the controller
         if (!method_exists($controller, $controllerMethod)) {
             throw new Exception("Method {$controllerMethod} not found in {$controllerClass}");
         }
 
-        // (Debug) Output method name and parameters
+        // Debug
         if ($this->debug) {
-            var_dump($controllerMethod, $params);
-            var_dump($controller);
+            echo "<pre>Calling {$controllerClass}::{$controllerMethod}()</pre>";
         }
 
-        // Call the method with the provided parameters
-        call_user_func_array([$controller, $controllerMethod], $params);
+        // Pass the structured array as a single parameter
+        $controller->$controllerMethod($params);
     }
 
-    /**
-     * Check if a given string is valid JSON
-     *
-     * @param string $string Input string
-     * @return bool True if valid JSON, false otherwise
-     */
+    // -----------------------------
+    // Utility: check if string is JSON
+    // -----------------------------
     protected function isJson(string $string): bool
     {
         json_decode($string);

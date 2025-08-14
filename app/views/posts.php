@@ -20,8 +20,8 @@ $formAction = $isEdit
     <!-- Add ID so JavaScript can find it -->
     <form id="jobForm" method="POST" action="<?= $formAction ?>">
       <?php if ($isEdit): ?>
-        <!-- This hidden input allows method spoofing for backend handling -->
-        <input type="hidden" name="_method" value="PUT">
+        <!-- This hidden input allows method spoofing if needed in backend -->
+        <input type="hidden" name="_method" value="PATCH">
       <?php endif; ?>
 
       <!-- Job Info Section -->
@@ -32,7 +32,7 @@ $formAction = $isEdit
       <div class="mb-4">
         <input type="text" name="title" placeholder="Job Title"
           value="<?= htmlspecialchars($job['title'] ?? '') ?>"
-          class="w-full px-4 py-2 border rounded focus:outline-none" />
+          class="w-full px-4 py-2 border rounded focus:outline-none" required />
       </div>
 
       <div class="mb-4">
@@ -115,21 +115,36 @@ $formAction = $isEdit
 <!-- JS will only run if editing -->
 <script>
 document.getElementById("jobForm").addEventListener("submit", async function(e) {
-    e.preventDefault(); // Stop normal POST
+    e.preventDefault(); // Stop normal form submission
+
     const formData = new FormData(this);
 
-    // Send as PATCH for edit
-    const res = await fetch("<?= '/jobs/' . $job['id'] . '/edit/'?>", {
-        method: "PATCH",
-        body: formData
+    // Convert FormData to JSON, excluding _method
+    const data = {};
+    formData.forEach((value, key) => {
+        if (key !== "_method") data[key] = value;
     });
 
-    if (res.ok) {
-        window.location.href = "/jobs/details/<?= $job['id'] ?>";
-    } else {
-        alert("Error updating job");
+    try {
+        const res = await fetch("<?= '/jobs/' . $job['id'] . '/edit/' ?>", {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (res.ok) {
+            window.location.href = "/jobs/details/<?= $job['id'] ?>";
+        } else {
+            const err = await res.json();
+            alert(err.message || "Error updating job");
+        }
+    } catch (error) {
+        alert("Network error: " + error.message);
     }
 });
+
 </script>
 <?php endif; ?>
 
