@@ -1,25 +1,18 @@
 <?php
-
 namespace App\Middlewares;
 
-class Auth{
-    public function __construct() {
-        // Initialize any required properties or dependencies
-    }
+use Framework\Session;
 
-    public function handle($params) {
-        session_start();
-        // Check if user is logged in
-        if (!isset($_SESSION["user_email"])) {
-            // Redirect to login page if not authenticated
+class Auth
+{
+    public function handle(array $params, callable $next)
+    {
+        if (!Session::getUser("user_email")) {
             header("Location: /users/login");
             exit;
         }
 
-        // If authenticated, allow the request to proceed
-        return true;
+        // continue to next middleware or controller
+        return $next($params);
     }
 }
-
-?>
-

@@ -178,6 +178,8 @@ class Router
             $controller // final callable is the controller
         );
 
+      //  var_dump($pipeline);
+
         // Start execution
         $pipeline($params);
     }
