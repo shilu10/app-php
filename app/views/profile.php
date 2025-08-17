@@ -1,17 +1,14 @@
 <?php
-    session_start();
-    if (!isset($_SESSION["logged"]) || !$_SESSION["logged"]) {
-        header("Location: /users/login");
-        exit();
+
+if (!function_exists('e')) {
+    /**
+     * Escape HTML special characters to prevent XSS
+     */
+    function e($value): string
+    {
+        return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
     }
-    $currentUserName = $_SESSION["user_name"] ?? '';
-    $currentUserEmail = $_SESSION["user_email"] ?? '';
-    $currentUserDetails = [
-        'name' => $currentUserName,
-        'email' => $currentUserEmail,
-        'city' => $_SESSION["user_city"] ?? '',
-        'state' => $_SESSION["user_state"] ?? '',
-    ];
+}
 ?>
 
 <!doctype html>
@@ -27,8 +24,8 @@
     <div class="container mx-auto flex justify-between items-center">
       <div class="font-semibold">Workopia</div>
       <div class="space-x-4">
-        <a href="index.php" class="hover:underline">Home</a>
-        <a href="logout.php" class="hover:underline">Logout</a>
+        <a href="/" class="hover:underline">Home</a>
+        <a href="/users/logout" class="hover:underline">Logout</a>
       </div>
     </div>
   </nav>
@@ -58,19 +55,11 @@
           <div class="mt-1"><?= e($currentUserDetails['state'] ?? '') ?></div>
         </div>
 
-        <!-- Add other fields you store -->
-        <div class="md:col-span-2">
-          <label class="text-sm text-gray-600">Joined / Extra</label>
-          <div class="mt-1 text-sm text-gray-500">
-            <!-- example: show id or created_at if you have it -->
-            ID: <?= e($currentUserDetails['id'] ?? '') ?>
-          </div>
-        </div>
-      </div>
+      
 
       <div class="mt-6 flex space-x-3">
-        <a href="edit-profile.php" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Edit Profile</a>
-        <a href="logout.php" class="px-4 py-2 border rounded hover:bg-gray-50">Logout</a>
+        <a href="/users/edit" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Edit Profile</a>
+        <a href="/users/logout" class="px-4 py-2 border rounded hover:bg-gray-50">Logout</a>
       </div>
     </div>
   </main>

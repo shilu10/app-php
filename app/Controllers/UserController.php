@@ -85,14 +85,17 @@ class UserController {
         header("Location: /");
     }
 
-    public function profile(){
-        seession_start();
-        $email = $_SESSION["user_email"];
-        $sql = "SELECT name, email, city, state FROM users WHERE email=:email";
-        $stmt = $this->db->query($sql);
+    public function profile() {
+        $user = Session::getUser();
 
-        $user = $stmt->fetch();
-        $user["logged"] = true;
-        loadView("profile", $user);
+        $sql = "SELECT name, email, city, state FROM users WHERE email=:email";
+        $stmt = $this->db->bindQuery($sql, ["email" => $user["email"]]);
+
+        $userData = $stmt->fetch();
+        $userData["logged"] = true;
+        $currentUser["currentUserDetails"] = $userData;
+
+        loadView("profile", $currentUser);
     }
+
 }
