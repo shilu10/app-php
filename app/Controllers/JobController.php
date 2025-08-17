@@ -6,12 +6,13 @@ use \Framework\Database;
 use \Config\DBConfig;
 use \Framework\Session;
 use Ramsey\Uuid\Uuid;
+use PDOException;
+use Exception;
 
 class JobController {
     protected $db; 
 
     public function __construct() {
-        // Load DB configuration and connect
         $config = DBConfig::$settings; 
         $db = new Database();
         $db->connect($config);
@@ -19,165 +20,212 @@ class JobController {
     }
 
     /**
-     * GET job details by ID (path parameter)
+     * GET job details by ID
      */
     public function getDetails($params) {
-        var_dump($params);
-        $pathParams  = $params['pathParams']["id"];
-        $queryParams = $params['queryParams'];
+        try {
+            $id = $params['pathParams']["id"] ?? null;
+            if (!$id) return ErrorController::badRequest("Missing job ID");
 
-        $stmt = $this->db->bindQuery(
-            "SELECT id, BIN_TO_UUID(user_id) as user_id, title, description, salary,
-                requirements, benefits, company, address, city, state, phone, email, tags
-            FROM job_listings
-            WHERE id = :id", 
-            [':id' => $pathParams] // Bind dynamic ID
-        );
+            $stmt = $this->db->bindQuery(
+                "SELECT id, BIN_TO_UUID(user_id) as user_id, title, description, salary,
+                        requirements, benefits, company, address, city, state, phone, email, tags
+                 FROM job_listings
+                 WHERE id = :id", 
+                [':id' => $id]
+            );
 
-        $data = [];
-        $data["jobDetails"] = $stmt->fetch(); // Fetch single row
+            if (!$stmt || $stmt->rowCount() === 0) {
+                return ErrorController::notFound("Job not found");
+            }
 
-        loadView("details", $data);
+            $data["jobDetails"] = $stmt->fetch();
+            loadView("details", $data);
+
+        } catch (PDOException $e) {
+            error_log("Database error in getDetails: " . $e->getMessage());
+            return ErrorController::serverError();
+        } catch (Exception $e) {
+            error_log("General error in getDetails: " . $e->getMessage());
+            return ErrorController::serverError();
+        }
     }
 
     /**
      * GET /jobs/create
      */
     public function createGet() {
-        loadView("posts");
+        try {
+            loadView("posts");
+        } catch (Exception $e) {
+            error_log("Error in createGet: " . $e->getMessage());
+            return ErrorController::serverError();
+        }
     }
 
     /**
      * POST /jobs/create
-     * Create a new job
      */
     public function createPost($params) {
-        // Parse request body (form or JSON)
-        $body = $params['body'];
-        $body["user_id"] = Session::getUser()["id"];
-        
-        // Ensure all required fields exist
-        $requiredFields = [
-            'title','description','salary','requirements','benefits',
-            'company','address','city','state','phone','email', 'tags', 'user_id'
-        ];
-        foreach ($requiredFields as $field) {
-            if (!isset($body[$field])) $body[$field] = null;
-        }
+        try {
+            $body = $params['body'] ?? [];
+            $body["user_id"] = Session::getUser()["id"] ?? null;
 
-        echo "inside";
+            $requiredFields = [
+                'title','description','salary','requirements','benefits',
+                'company','address','city','state','phone','email', 'tags', 'user_id'
+            ];
+            foreach ($requiredFields as $field) {
+                if (!isset($body[$field])) $body[$field] = null;
+            }
 
-        $sql = "
-            INSERT INTO job_listings (
-                user_id, title, description, salary, requirements, benefits,
-                company, address, city, state, phone, email, tags
-            ) VALUES (
-                UUID_TO_BIN(:user_id), :title, :description, :salary, :requirements, :benefits,
-                :company, :address, :city, :state, :phone, :email, :tags
-            )
-        ";
+            $sql = "
+                INSERT INTO job_listings (
+                    user_id, title, description, salary, requirements, benefits,
+                    company, address, city, state, phone, email, tags
+                ) VALUES (
+                    UUID_TO_BIN(:user_id), :title, :description, :salary, :requirements, :benefits,
+                    :company, :address, :city, :state, :phone, :email, :tags
+                )
+            ";
 
-        $stmt = $this->db->bindQuery($sql, $body);
+            $stmt = $this->db->bindQuery($sql, $body);
 
-        if ($stmt && $stmt->rowCount() > 0) {
-            header("Location: /");
-            exit;
-        } else {
-            header("Location: /error");
-            exit;
+            if ($stmt && $stmt->rowCount() > 0) {
+                header("Location: /");
+                exit;
+            } else {
+                return ErrorController::serverError("Job creation failed");
+            }
+
+        } catch (PDOException $e) {
+            error_log("Database error in createPost: " . $e->getMessage());
+            return ErrorController::serverError();
+        } catch (Exception $e) {
+            error_log("General error in createPost: " . $e->getMessage());
+            return ErrorController::serverError();
         }
     }
 
     /**
      * DELETE /jobs/{id}
      */
-    public function delete($params){
-        $pathParams = $params['pathParams']["id"];
+    public function delete($params) {
+        try {
+            $id = $params['pathParams']["id"] ?? null;
+            if (!$id) return ErrorController::badRequest("Missing job ID");
 
-        $stmt = $this->db->bindQuery(
-            "DELETE FROM job_listings WHERE id = :id", 
-            [':id' => $pathParams] 
-        );
+            $stmt = $this->db->bindQuery(
+                "DELETE FROM job_listings WHERE id = :id", 
+                [':id' => $id] 
+            );
 
-        echo json_encode([
-            "status" => "success",
-            "message" => "Job deleted"
-        ]);
-        exit;
+            if ($stmt && $stmt->rowCount() > 0) {
+                echo json_encode([
+                    "status" => "success",
+                    "message" => "Job deleted"
+                ]);
+            } else {
+                return ErrorController::notFound("Job not found");
+            }
+            exit;
+
+        } catch (PDOException $e) {
+            error_log("Database error in delete: " . $e->getMessage());
+            return ErrorController::serverError();
+        } catch (Exception $e) {
+            error_log("General error in delete: " . $e->getMessage());
+            return ErrorController::serverError();
+        }
     }
 
     /**
      * PATCH /jobs/{id}/edit
-     * Update an existing job
      */
     public function update($params) {
-        $pathParams = $params['pathParams']["id"];
+        try {
+            $id = $params['pathParams']["id"] ?? null;
+            if (!$id) return ErrorController::badRequest("Missing job ID");
 
-        // Read raw JSON body for PATCH
-        $rawBody = file_get_contents('php://input');
-        $body = json_decode($rawBody, true); // Decode JSON into associative array
+            $rawBody = file_get_contents('php://input');
+            $body = json_decode($rawBody, true) ?? [];
+            $body['id'] = $id;
+            $body["user_id"] = Session::getUser()["id"] ?? null;
 
-        if (!$body) $body = []; // Handle empty body
+            $requiredFields = [
+                'title','description','salary','requirements','benefits',
+                'company','address','city','state','phone','email', 'tags', 'user_id'
+            ];
+            foreach ($requiredFields as $field) {
+                if (!isset($body[$field])) $body[$field] = null;
+            }
 
-        // Add default fields if missing
-        if (!isset($body['tags'])) $body['tags'] = '';
-        $body['id'] = $pathParams; // Required for WHERE clause
+            $sql = "
+                UPDATE job_listings
+                SET 
+                    user_id = UUID_TO_BIN(:user_id),
+                    title = :title,
+                    description = :description,
+                    salary = :salary,
+                    requirements = :requirements,
+                    benefits = :benefits,
+                    company = :company,
+                    address = :address,
+                    city = :city,
+                    state = :state,
+                    phone = :phone,
+                    email = :email,
+                    tags = :tags
+                WHERE id = :id
+            ";
 
-        // getting user_id from current session 
-        $body["user_id"] = Session::getUser()["id"];
+            $stmt = $this->db->bindQuery($sql, $body);
 
-        // Ensure all placeholders exist to avoid SQL errors
-        $requiredFields = [
-            'title','description','salary','requirements','benefits',
-            'company','address','city','state','phone','email', 'tags', 'user_id'
-        ];
-        foreach ($requiredFields as $field) {
-            if (!isset($body[$field])) $body[$field] = null;
+            if ($stmt && $stmt->rowCount() > 0) {
+                echo json_encode([
+                    "status" => "success",
+                    "message" => "Job updated"
+                ]);
+            } else {
+                return ErrorController::notFound("Job not found or no changes applied");
+            }
+            exit;
+
+        } catch (PDOException $e) {
+            error_log("Database error in update: " . $e->getMessage());
+            return ErrorController::serverError();
+        } catch (Exception $e) {
+            error_log("General error in update: " . $e->getMessage());
+            return ErrorController::serverError();
         }
-
-        $sql = "
-            UPDATE job_listings
-            SET 
-                user_id = UUID_TO_BIN(:user_id),
-                title = :title,
-                description = :description,
-                salary = :salary,
-                requirements = :requirements,
-                benefits = :benefits,
-                company = :company,
-                address = :address,
-                city = :city,
-                state = :state,
-                phone = :phone,
-                email = :email,
-                tags = :tags
-            WHERE id = :id
-        ";
-
-        $stmt = $this->db->bindQuery($sql, $body);
-
-        echo json_encode([
-            "status" => "success",
-            "message" => "Job updated"
-        ]);
-        exit;
     }
 
     /**
      * GET /jobs/{id}/edit
-     * Load job for editing
      */
     public function updateGet($params) {
-        $pathParams = $params['pathParams']["id"];
+        try {
+            $id = $params['pathParams']["id"] ?? null;
+            if (!$id) return ErrorController::badRequest("Missing job ID");
 
-        $stmt = $this->db->bindQuery(
-            "SELECT * FROM job_listings WHERE id = :id", 
-            [':id' => $pathParams] 
-        );
+            $stmt = $this->db->bindQuery(
+                "SELECT * FROM job_listings WHERE id = :id", 
+                [':id' => $id] 
+            );
 
-        $data = [];
-        $data["job"] = $stmt->fetch();
+            if (!$stmt || $stmt->rowCount() === 0) {
+                return ErrorController::notFound("Job not found");
+            }
 
-        loadView("posts", $data);
+            $data["job"] = $stmt->fetch();
+            loadView("posts", $data);
+
+        } catch (PDOException $e) {
+            error_log("Database error in updateGet: " . $e->getMessage());
+            return ErrorController::serverError();
+        } catch (Exception $e) {
+            error_log("General error in updateGet: " . $e->getMessage());
+            return ErrorController::serverError();
+        }
     }
 }

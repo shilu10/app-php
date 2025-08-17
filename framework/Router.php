@@ -3,6 +3,7 @@
 namespace Framework;
 
 use Exception;
+use App\Controllers\ErrorController;
 
 /**
  * Router
@@ -118,21 +119,10 @@ class Router
             }
 
             // No matching route → return 404
-            http_response_code(404);
-            if (function_exists('loadView')) {
-                loadView("error");
-            } else {
-                echo "404 Not Found";
-            }
+            ErrorController::notFound();
 
         } catch (Exception $e) {
-            // Catch router errors → 500 response
-            http_response_code(500);
-            if ($this->debug) {
-                echo "Router Error: " . $e->getMessage();
-            } else {
-                echo "500 Internal Server Error";
-            }
+            ErrorController::serverError();
         }
     }
 
