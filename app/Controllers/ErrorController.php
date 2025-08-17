@@ -13,7 +13,7 @@ class ErrorController {
     * @params: null
     * @return: null
     */
-    public static function notFound() {
+    public static function notFound($message=null) {
         http_response_code(404);
         $data = [
             "message" => "The requested resource was not found.",
@@ -27,7 +27,7 @@ class ErrorController {
     * @params: null
     * @return: null
     */
-    public static function serverError() {
+    public static function serverError($message=null) {
         http_response_code(500);
         $data = [
             "message" => "An unexpected error occurred on the server.",
@@ -41,7 +41,7 @@ class ErrorController {
     * @params: null
     * @return: null
     */
-    public static function forbidden() {
+    public static function forbidden($message=null) {
         http_response_code(403);
         $data = [
             "message" => "You do not have permission to access this resource.",
@@ -55,7 +55,7 @@ class ErrorController {
     * @params: null
     * @return: null
     */
-    public static function unauthorized() {
+    public static function unauthorized($message=null) {
         http_response_code(401);
         $data = [
             "message" => "You must be logged in to access this resource.",
@@ -69,7 +69,7 @@ class ErrorController {
     * @params: null
     * @return: null
     */
-    public static function methodNotAllowed() {
+    public static function methodNotAllowed($message=null) {
         http_response_code(405);
         $data = [
             "message" => "The requested method is not allowed for this resource.",
@@ -83,11 +83,11 @@ class ErrorController {
     * @params: null
     * @return: null
     */
-    public static function badRequest() {
+    public static function badRequest($message=null) {
         http_response_code(400);
 
         $data = [
-            "message" => "The request could not be understood by the server due to malformed syntax.",
+            "message" =>$message ?? "The request could not be understood by the server due to malformed syntax.",
             "error" => "400 Bad Request"
         ];
         loadView("error", $data);

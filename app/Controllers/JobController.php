@@ -24,8 +24,10 @@ class JobController {
      */
     public function getDetails($params) {
         try {
-            $id = $params['pathParams']["id"] ?? null;
-            if (!$id) return ErrorController::badRequest("Missing job ID");
+            $valid = JobRequest::validateGetDetails($params);
+            if (!$valid) {
+                return ErrorController::badRequest("Invalid job ID");
+            }
 
             $stmt = $this->db->bindQuery(
                 "SELECT id, BIN_TO_UUID(user_id) as user_id, title, description, salary,
@@ -68,6 +70,11 @@ class JobController {
      */
     public function createPost($params) {
         try {
+            $valid = JobRequest::validateCreate($params);
+            if (!$valid) {
+                return ErrorController::badRequest("Invalid job creation parameters");
+            }
+
             $body = $params['body'] ?? [];
             $body["user_id"] = Session::getUser()["id"] ?? null;
 
@@ -112,9 +119,12 @@ class JobController {
      */
     public function delete($params) {
         try {
-            $id = $params['pathParams']["id"] ?? null;
-            if (!$id) return ErrorController::badRequest("Missing job ID");
+            $valid = JobRequest::validateDelete($params);
+            if (!$valid) {
+                return ErrorController::badRequest("Invalid job ID");
+            }
 
+            $id = $params['pathParams']["id"]
             $stmt = $this->db->bindQuery(
                 "DELETE FROM job_listings WHERE id = :id", 
                 [':id' => $id] 
@@ -144,11 +154,16 @@ class JobController {
      */
     public function update($params) {
         try {
-            $id = $params['pathParams']["id"] ?? null;
-            if (!$id) return ErrorController::badRequest("Missing job ID");
 
             $rawBody = file_get_contents('php://input');
             $body = json_decode($rawBody, true) ?? [];
+            $id = $params['pathParams']["id"];
+            
+            $valid = JobRequest::validateUpdate($params);
+            if (!$valid) {
+                return ErrorController::badRequest("Invalid job update parameters");
+            }
+
             $body['id'] = $id;
             $body["user_id"] = Session::getUser()["id"] ?? null;
 
@@ -205,9 +220,12 @@ class JobController {
      */
     public function updateGet($params) {
         try {
-            $id = $params['pathParams']["id"] ?? null;
-            if (!$id) return ErrorController::badRequest("Missing job ID");
+            $valid = JobRequest::validateGetDetails($params);
+            if (!$valid) {
+                return ErrorController::badRequest("Invalid job ID");
+            }
 
+            $id = $params['pathParams']["id"]
             $stmt = $this->db->bindQuery(
                 "SELECT * FROM job_listings WHERE id = :id", 
                 [':id' => $id] 

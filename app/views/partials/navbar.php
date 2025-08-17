@@ -1,13 +1,14 @@
 <?php 
   session_start();
 
-  if ($_SESSION["logged"]){
+  $logged = false; // always define first
+
+  if (isset($_SESSION["logged"]) && isset($_SESSION["user_id"])) {
     $currentUserName = $_SESSION["user_name"];
     $currentUserEmail = $_SESSION["user_email"];
     $logged = true;
   }
-  ?>
-
+?>
 <!-- Nav -->
     <header class="bg-blue-900 text-white p-4">
       <div class="container mx-auto flex justify-between items-center">

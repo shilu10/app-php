@@ -7,6 +7,7 @@ use \Config\DBConfig;
 use \Framework\Session;
 use \PDOException;
 use \Exception;
+use \App\Requests\UserRequest;
 
 class UserController {
     /**
@@ -29,14 +30,15 @@ class UserController {
      */
     public function login($params) {
         try {
-            $body = $params["body"] ?? [];
-            $email = $body["email"] ?? null;
-            $password = $body["password"] ?? null;
 
-            if (!$email || !$password) {
-                return ErrorController::badRequest("Email and password are required");
+            $valid = UserRequest::validateLogin($params);
+            if (!$valid) {
+                return ErrorController::badRequest("Invalid login parameters");
             }
 
+            $body = $params["body"] ;
+            $email = $body["email"];
+            $password = $body["password"];
             $stmt = $this->db->query(
                 "SELECT BIN_TO_UUID(id) as id, email, name, password, state, city 
                  FROM users 
@@ -79,13 +81,10 @@ class UserController {
      */
     public function register($params) {
         try {
-            $body = $params["body"] ?? [];
-
-            $required = ["name", "email", "city", "state", "password"];
-            foreach ($required as $field) {
-                if (empty($body[$field])) {
-                    return ErrorController::badRequest("Missing required field: $field");
-                }
+            $valid = UserRequest::validateRegister($params);
+            
+            if (!$valid) {
+                return ErrorController::badRequest("Invalid login parameters");
             }
 
             $hashedPassword = password_hash($body["password"], PASSWORD_DEFAULT);
