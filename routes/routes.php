@@ -1,7 +1,7 @@
 <?php 
 
 function registerListingRoutes($router) {
-    $router->GET("/listings", "ListingController@listAll");
+    $router->GET("/listings", "ListingController@listAll", ["Auth"]);
 }
 
 function registerHomeRoutes($router) {
@@ -9,10 +9,19 @@ function registerHomeRoutes($router) {
 }
 
 function registerJobRoutes($router) {
-    $router->GET("jobs/details/{id}", "JobController@getDetails");
-    $router->DELETE("jobs/{id}", "JobController@delete");
-    $router->POST("jobs/", "JobController@createPost");
-    $router->GET("jobs/", "JobController@createGet");
-    $router->PATCH("jobs/{id}/edit", "JobController@update");
-    $router->GET("jobs/{id}/edit", "JobController@updateGet");
+    $router->GET("jobs/details/{id}", "JobController@getDetails", ["Auth"]);
+    $router->DELETE("jobs/{id}", "JobController@delete", ["Auth"]);
+    $router->POST("jobs/", "JobController@createPost", ["Auth"]);
+    $router->GET("jobs/", "JobController@createGet", ["Auth"]);
+    $router->PATCH("jobs/{id}/edit", "JobController@update", ["Auth"]);
+    $router->GET("jobs/{id}/edit", "JobController@updateGet", ["Auth"]);
+}
+
+function registerUserroutes($router) {
+    $router->POST("users/login", "UserController@login");
+    $router->POST("users/register", "UserController@register");
+    $router->GET("users/login", "UserController@loginGet");
+    $router->GET("users/register", "UserController@registerGet");
+    $router->GET("users/logout", "UserController@logout");
+    $router->GET("users/profile", "UserController@profile");
 }

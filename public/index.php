@@ -11,6 +11,7 @@
     registerListingRoutes($router);
     registerHomeRoutes($router);
     registerJobRoutes($router);
+    registerUserroutes($router);
 
     $router->listen();
 ?>
