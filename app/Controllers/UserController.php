@@ -5,6 +5,7 @@ namespace App\Controllers;
 use \Framework\Database;
 use \Config\DBConfig;
 use \Framework\Session;
+use Ramsey\Uuid\Uuid;
 
 class UserController {
 
@@ -20,12 +21,14 @@ class UserController {
         $email = $body["email"];
         $password = $body["password"];
         
-        $stmt = $this->db->query("SELECT email, name, password, state, city FROM users WHERE email=:email", ["email"=>$email]);
+        $stmt = $this->db->query("SELECT BIN_TO_UUID(id) as id, email, name, password, state, city FROM users WHERE email=:email", ["email"=>$email]);
         $actualData = $stmt->fetch();
         $verified = password_verify($password, $actualData["password"]);
 
+        var_dump($actualData);
+
         if ($verified) {
-            Session::startSession($actualData["name"], $actualData["email"]);
+            Session::startSession($actualData["name"], $actualData["email"], $actualData["id"]);
             header("Location: /");
             exit;
         } else {
@@ -54,7 +57,8 @@ class UserController {
             )
         ";
 
-        $values = ["email"=>$email, 
+        $values = [
+                   "email"=>$email, 
                    "password"=>$hashedPassword, 
                    "name"=>$name, 
                    "city"=>$city,
@@ -87,7 +91,6 @@ class UserController {
 
     public function profile() {
         $user = Session::getUser();
-
         $sql = "SELECT name, email, city, state FROM users WHERE email=:email";
         $stmt = $this->db->bindQuery($sql, ["email" => $user["email"]]);
 

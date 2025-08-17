@@ -4,6 +4,8 @@ namespace App\Controllers;
 
 use \Framework\Database;
 use \Config\DBConfig;
+use \Framework\Session;
+use Ramsey\Uuid\Uuid;
 
 class JobController {
     protected $db; 
@@ -20,11 +22,15 @@ class JobController {
      * GET job details by ID (path parameter)
      */
     public function getDetails($params) {
-        $pathParams  = $params['pathParams'][0];
+        var_dump($params);
+        $pathParams  = $params['pathParams']["id"];
         $queryParams = $params['queryParams'];
 
         $stmt = $this->db->bindQuery(
-            "SELECT * FROM job_listings WHERE id = :id", 
+            "SELECT id, BIN_TO_UUID(user_id) as user_id, title, description, salary,
+                requirements, benefits, company, address, city, state, phone, email, tags
+            FROM job_listings
+            WHERE id = :id", 
             [':id' => $pathParams] // Bind dynamic ID
         );
 
@@ -48,26 +54,25 @@ class JobController {
     public function createPost($params) {
         // Parse request body (form or JSON)
         $body = $params['body'];
+        $body["user_id"] = Session::getUser()["id"];
         
-        // Add dummy user_id and tags
-        $body["user_id"] = rand(1, 1000);
-        $body["tags"] = "dummy";
-
         // Ensure all required fields exist
         $requiredFields = [
             'title','description','salary','requirements','benefits',
-            'company','address','city','state','phone','email'
+            'company','address','city','state','phone','email', 'tags', 'user_id'
         ];
         foreach ($requiredFields as $field) {
             if (!isset($body[$field])) $body[$field] = null;
         }
+
+        echo "inside";
 
         $sql = "
             INSERT INTO job_listings (
                 user_id, title, description, salary, requirements, benefits,
                 company, address, city, state, phone, email, tags
             ) VALUES (
-                :user_id, :title, :description, :salary, :requirements, :benefits,
+                UUID_TO_BIN(:user_id), :title, :description, :salary, :requirements, :benefits,
                 :company, :address, :city, :state, :phone, :email, :tags
             )
         ";
@@ -87,7 +92,7 @@ class JobController {
      * DELETE /jobs/{id}
      */
     public function delete($params){
-        $pathParams = $params['pathParams'][0];
+        $pathParams = $params['pathParams']["id"];
 
         $stmt = $this->db->bindQuery(
             "DELETE FROM job_listings WHERE id = :id", 
@@ -106,7 +111,7 @@ class JobController {
      * Update an existing job
      */
     public function update($params) {
-        $pathParams = $params['pathParams'][0];
+        $pathParams = $params['pathParams']["id"];
 
         // Read raw JSON body for PATCH
         $rawBody = file_get_contents('php://input');
@@ -115,14 +120,16 @@ class JobController {
         if (!$body) $body = []; // Handle empty body
 
         // Add default fields if missing
-        if (!isset($body['user_id'])) $body['user_id'] = 2;
-        if (!isset($body['tags'])) $body['tags'] = 'dummy';
+        if (!isset($body['tags'])) $body['tags'] = '';
         $body['id'] = $pathParams; // Required for WHERE clause
+
+        // getting user_id from current session 
+        $body["user_id"] = Session::getUser()["id"];
 
         // Ensure all placeholders exist to avoid SQL errors
         $requiredFields = [
             'title','description','salary','requirements','benefits',
-            'company','address','city','state','phone','email'
+            'company','address','city','state','phone','email', 'tags', 'user_id'
         ];
         foreach ($requiredFields as $field) {
             if (!isset($body[$field])) $body[$field] = null;
@@ -131,7 +138,7 @@ class JobController {
         $sql = "
             UPDATE job_listings
             SET 
-                user_id = :user_id,
+                user_id = UUID_TO_BIN(:user_id),
                 title = :title,
                 description = :description,
                 salary = :salary,
@@ -161,7 +168,7 @@ class JobController {
      * Load job for editing
      */
     public function updateGet($params) {
-        $pathParams = $params['pathParams'][0];
+        $pathParams = $params['pathParams']["id"];
 
         $stmt = $this->db->bindQuery(
             "SELECT * FROM job_listings WHERE id = :id", 

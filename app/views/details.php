@@ -68,13 +68,13 @@
           fetch(`/jobs/${id}`, {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: id })
           })
           .then(res => res.json())
           .then(data => {
+              console.log(data);
               if (data.status === "success") {
                   alert(data.message);       // optional success message
-                  window.location.href = "/"; // redirect to home page
+                  window.location.href = "/listings"; // redirect to home page
               } else {
                   alert(data.message);       // show error
               }

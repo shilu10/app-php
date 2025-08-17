@@ -99,6 +99,12 @@ $formAction = $isEdit
           class="w-full px-4 py-2 border rounded focus:outline-none" />
       </div>
 
+      <div class="mb-4">
+        <input type="tags" name="tags" placeholder="Tags (comma separated)"
+          value="<?= htmlspecialchars($job['tags'] ?? '') ?>"
+          class="w-full px-4 py-2 border rounded focus:outline-none" />
+      </div>
+
       <!-- Submit & Cancel Buttons -->
       <button class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 my-3 rounded focus:outline-none">
         <?= $isEdit ? "Update" : "Save" ?>

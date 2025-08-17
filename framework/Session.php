@@ -10,7 +10,7 @@ class Session{
      * @param string $user_name
      * @param string $user_email
      */
-    public static function startSession($user_name, $user_email) {
+    public static function startSession($user_name, $user_email, $user_id) {
 
         // Configure session cookie security options
         session_set_cookie_params([
@@ -27,6 +27,7 @@ class Session{
         // Store user data in the session
         $_SESSION["user_name"]  = $user_name;
         $_SESSION["user_email"] = $user_email;
+        $_SESSION["user_id"] = $user_id;
         $_SESSION["logged"]     = true;
     }
 
@@ -67,7 +68,8 @@ class Session{
         session_start();
         return $_SESSION["logged"] ? [
             "name"  => $_SESSION["user_name"],
-            "email" => $_SESSION["user_email"]
+            "email" => $_SESSION["user_email"],
+            "id" => $_SESSION["user_id"],
         ] : null;
     }
 

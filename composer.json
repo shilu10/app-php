@@ -13,5 +13,7 @@
             "email": "shilu842003@example.com"
         }
     ],
-    "require": {}
+    "require": {
+        "ramsey/uuid": "^4.9"
+    }
 }
